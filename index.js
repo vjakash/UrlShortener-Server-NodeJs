@@ -72,13 +72,13 @@ async function authenticate(req, res, next) {
 }
 
 app.listen(port, () => {
-    console.log(`listening on port ${port}`);
-})
-app.get('/', (req, res) => {
-    res.json({
-        message: "welcome to the server"
+        console.log(`listening on port ${port}`);
     })
-})
+    // app.get('/', (req, res) => {
+    //     res.json({
+    //         message: "welcome to the server"
+    //     })
+    // })
 app.post('/register', async(req, res) => {
     if (req.body.email == undefined || req.body.password == undefined) {
         res.status(400).json({
