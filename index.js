@@ -56,7 +56,7 @@ async function authenticate(req, res, next) {
         jwt.verify(req.headers.authorization, 'pkngrdxawdvhilpkngrdxawdvhil', (err, decoded) => {
             if (err) {
                 res.status(401).json({
-                    message: "Invalid Token"
+                    message: "Session Expired,Please Login again"
                 })
                 return;
             } else if (decoded.isVerified == false) {
@@ -160,7 +160,7 @@ app.post("/login", (req, res) => {
                         if (err) throw err;
                         // result == true
                         if (result) {
-                            jwt.sign({ id: data['_id'], }, 'pkngrdxawdvhilpkngrdxawdvhil', { expiresIn: '5h' }, function(err, token) {
+                            jwt.sign({ id: data['_id'], }, 'pkngrdxawdvhilpkngrdxawdvhil', { expiresIn: '10h' }, function(err, token) {
                                 if (err) throw err;
                                 // console.log(token);
                                 client.close();
@@ -360,7 +360,21 @@ app.post('/getuserdata', [authenticate], async(req, res) => {
     }
 
 })
-
+app.post('/geturlsbyemail', [authenticate], async(req, res) => {
+    if (req.body.email != '') {
+        let email = req.body.email;
+        let client = await mongodb.connect(dbURL).catch((err) => { throw err; });
+        let db = client.db("urlshortener");
+        let data = await db.collection("shorturls").find({ email: email }).toArray().catch((err) => { throw err; });
+        // console.log( data);
+        client.close();
+        res.status(200).json(data);
+    } else {
+        res.status(400).json({
+            messagge: "The email address is missing"
+        })
+    }
+})
 app.post('/shortenurl', [authenticate], async(req, res) => {
     let url = req.body.url;
     let ran = Math.random().toString(32).substring(7);
@@ -380,6 +394,7 @@ app.post('/shortenurl', [authenticate], async(req, res) => {
         }
         // console.log(obj);
     let data = await db.collection("users").updateOne({ email: email }, { $push: { urls: obj } }).catch((err) => { throw err });
+    let data1 = await db.collection("shorturls").insertOne({ email, url, short_url, count, clicks, timestamp });
     client.close();
     res.status(200).json({
         message: "Created short url succefully",
@@ -391,21 +406,35 @@ app.post('/createcustomurl', [authenticate], async(req, res) => {
     let email = req.body.email;
     let oldUrl = req.body.oldUrl;
     let newUrl = `${process.env.shorturl}/${req.body.newUrl}`;
-    console.log(email, oldUrl, newUrl);
+    // console.log(email, oldUrl, newUrl);
     let client = await mongodb.connect(dbURL).catch((err) => { throw err });
     let db = client.db("urlshortener");
-    let data = db.collection("users").updateOne({ email: email, "urls.short_url": oldUrl }, { $set: { "urls.$.short_url": newUrl } }).catch((err) => { throw err });
-    // let data1 = db.collection("users").updateOne({ email: email }, { $set: { urls: [] } }).catch((err) => { throw err; });
-    client.close();
-    res.status(200).json({
-        message: "Created Custom Url",
-        short_url: newUrl
-    })
+    let checkExisting = await db.collection("shorturls").findOne({ "short_url": newUrl }).catch((err) => { throw err });
+    // console.log(checkExisting)
+    if (checkExisting == null) {
+        let data = await db.collection("users").updateOne({ email: email, "urls.short_url": oldUrl }, { $set: { "urls.$.short_url": newUrl } }).catch((err) => { throw err });
+        let data1 = await db.collection("shorturls").updateOne({ email: email, "short_url": oldUrl }, { $set: { "short_url": newUrl } }).catch((err) => { throw err });
+        // let data2 =await db.collection("users").updateOne({ email: email }, { $set: { urls: [] } }).catch((err) => { throw err; });
+        client.close();
+        res.status(200).json({
+            message: " Custom URL Created",
+            short_url: newUrl
+        })
+    } else {
+        res.status(400).json({
+            message: "The custom url already exists"
+        })
+    }
+
 })
 app.get('/:code', async(req, res) => {
-    let short_url = `${process.env,shorturl}/${req.params.code}`;
+    let short_url = `${process.env.shorturl}/${req.params.code}`;
     let client = await mongodb.connect(dbURL).catch((err) => { throw err; });
     let db = client.db("urlshortener");
-    let data = db.collection("users").findOne({})
+    let timestamp = new Date();
+    let data = await db.collection("shorturls").findOne({ short_url }).catch((err) => { throw err; });
+    let count = data.count + 1;
+    let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
+    res.redirect(data.url);
 
 })
