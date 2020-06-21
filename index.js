@@ -433,6 +433,7 @@ app.get('/:code', async(req, res) => {
     let db = client.db("urlshortener");
     let timestamp = new Date();
     let data = await db.collection("shorturls").findOne({ short_url }).catch((err) => { throw err; });
+    console.log(data.count);
     let count = data.count + 1;
     let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
     res.redirect(data.url);
