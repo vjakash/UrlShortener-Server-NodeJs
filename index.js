@@ -434,7 +434,7 @@ app.get('/:code', async(req, res) => {
     let timestamp = new Date();
     let data = await db.collection("shorturls").findOne({ short_url }).catch((err) => { throw err; });
     console.log("oldcount", data.count);
-    let count = Math.floor((data.count + 1) / 2);
+    let count = Math.ceil((data.count + 1) / 2);
     let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
     res.redirect(data.url);
 
