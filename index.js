@@ -381,6 +381,7 @@ app.post('/shortenurl', [authenticate], async(req, res) => {
     let short_url = `${process.env.shorturl}/${ran}`;
     let email = req.body.email;
     let count = 0;
+    let reference = 0;
     let timestamp = new Date();
     let clicks = [];
     let client = await mongodb.connect(dbURL).catch((err) => { throw err; });
@@ -394,7 +395,7 @@ app.post('/shortenurl', [authenticate], async(req, res) => {
         }
         // console.log(obj);
     let data = await db.collection("users").updateOne({ email: email }, { $push: { urls: obj } }).catch((err) => { throw err });
-    let data1 = await db.collection("shorturls").insertOne({ email, url, short_url, count, clicks, timestamp });
+    let data1 = await db.collection("shorturls").insertOne({ email, url, short_url, count, clicks, timestamp, reference });
     client.close();
     res.status(200).json({
         message: "Created short url succefully",
@@ -435,11 +436,11 @@ app.get('/:code', async(req, res) => {
     let data = await db.collection("shorturls").findOne({ short_url }).catch((err) => { throw err; });
     console.log("oldcount", data.count);
     let count = data.count + 1;
-    if (data.count == 0 && reference == 0) {
+    if (data.count == 0 && data.reference == 0) {
         count = 0;
         reference = 1;
     }
-    let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
+    let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count, reference: reference }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
     res.redirect(data.url);
 
 })
