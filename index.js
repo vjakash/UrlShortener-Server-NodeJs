@@ -11,8 +11,8 @@ const dbURL = process.env.dbURL;
 const express = require('express');
 const app = express();
 
-var jwt = require('jsonwebtoken');
-
+let jwt = require('jsonwebtoken');
+let reference = 0;
 const cors = require('cors');
 app.use(cors());
 app.use((req, res, next) => {
@@ -435,8 +435,9 @@ app.get('/:code', async(req, res) => {
     let data = await db.collection("shorturls").findOne({ short_url }).catch((err) => { throw err; });
     console.log("oldcount", data.count);
     let count = data.count + 1;
-    if (data.count == 0) {
+    if (data.count == 0 && reference == 0) {
         count = 0;
+        reference = 1;
     }
     let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
     res.redirect(data.url);
