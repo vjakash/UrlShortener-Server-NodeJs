@@ -301,6 +301,7 @@ app.get('/verify/:token/:email', (req, res) => {
             if (err) throw err;
             client.close();
             if (data) {
+                console.log(data);
                 res.status(200).json(data);
             } else {
                 res.status(400).json({
@@ -321,7 +322,7 @@ app.get('/accountverify/:token/:email', async(req, res) => {
         let timeStamp = new Date(data['verificationTimestamp']);
         let currentTimeStamp = new Date();
         let diff = Math.abs(timeStamp.valueOf() - currentTimeStamp.valueOf());
-        console.log(diff)
+        // console.log(diff)
         if (parseInt(data['verificationExpiry']) < diff) {
             res.status(200).json({
                 message: "The verification link has expired register again"
@@ -430,17 +431,18 @@ app.post('/createcustomurl', [authenticate], async(req, res) => {
 })
 app.get('/:code', async(req, res) => {
     let short_url = `${process.env.shorturl}/${req.params.code}`;
-    let client = await mongodb.connect(dbURL).catch((err) => { throw err; });
+    let client = await mongodb.connect(dbURL, { useUnifiedTopology: true }).catch((err) => { throw err; });
     let db = client.db("urlshortener");
     let timestamp = new Date();
     let data = await db.collection("shorturls").findOne({ short_url }).catch((err) => { throw err; });
-    console.log("oldcount", data.count);
+    console.log("oldcount", data);
     let count = data.count + 1;
     if (data.count == 0 && data.reference == 0) {
         count = 0;
         reference = 1;
     }
-    let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { count: count, reference: reference }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
+    await db.collection("shorturls").updateOne({ short_url }, [{ $set: { count: { $sum: ["$count", 1] } } }]).catch((err) => { throw err; });
+    let data1 = await db.collection("shorturls").updateOne({ short_url }, { $set: { reference: reference }, $push: { clicks: timestamp } }).catch((err) => { throw err; });
     res.redirect(data.url);
 
 })
